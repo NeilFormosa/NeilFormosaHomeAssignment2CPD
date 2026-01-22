@@ -19,17 +19,23 @@ class DepartmentAdapter extends TypeAdapter<Department> {
     return Department(
       name: fields[0] as String,
       description: fields[1] as String,
+      latitude: fields[2] as double?,
+      longitude: fields[3] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Department obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
-      ..write(obj.description);
+      ..write(obj.description)
+      ..writeByte(2)
+      ..write(obj.latitude)
+      ..writeByte(3)
+      ..write(obj.longitude);
   }
 
   @override

@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 
-part "department.g.dart";
+part 'department.g.dart';
 
 @HiveType(typeId: 0)
 class Department extends HiveObject {
@@ -10,5 +10,16 @@ class Department extends HiveObject {
   @HiveField(1)
   String description;
 
-  Department({required this.name, required this.description});
+  @HiveField(2)
+  double? latitude;
+
+  @HiveField(3)
+  double? longitude;
+
+  Department({
+    required this.name,
+    required this.description,
+    this.latitude,
+    this.longitude,
+  });
 }

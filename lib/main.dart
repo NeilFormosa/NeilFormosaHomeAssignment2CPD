@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+
 import 'models/department.dart';
 import 'models/event.dart';
-
-import 'pages/events_page.dart'; // Make sure you have this page created
+import 'pages/events_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
 
-  // Register adapters
   Hive.registerAdapter(DepartmentAdapter());
   Hive.registerAdapter(EventAdapter());
 
-  // Open boxes
   await Hive.openBox<Department>('departments');
   await Hive.openBox<Event>('events');
 
@@ -33,16 +32,6 @@ class MyApp extends StatelessWidget {
           backgroundColor: Colors.yellow[700],
           foregroundColor: Colors.black,
         ),
-        floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: Colors.yellow[700],
-          foregroundColor: Colors.black,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.yellow[700],
-            foregroundColor: Colors.black,
-          ),
-        ),
       ),
       home: DepartmentsPage(),
     );
@@ -56,10 +45,30 @@ class DepartmentsPage extends StatefulWidget {
 
 class _DepartmentsPageState extends State<DepartmentsPage> {
   final Box<Department> departmentBox = Hive.box<Department>('departments');
+  final Box<Event> eventBox = Hive.box<Event>('events');
+
   final TextEditingController nameController = TextEditingController();
   final TextEditingController descController = TextEditingController();
 
-  void addDepartment() {
+  // GPS permission handling
+  Future<Position?> getCurrentPosition() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return null;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return null;
+    }
+
+    if (permission == LocationPermission.deniedForever) return null;
+
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+  }
+
+  void addDepartment() async {
     final name = nameController.text.trim();
     final desc = descController.text.trim();
 
@@ -73,7 +82,24 @@ class _DepartmentsPageState extends State<DepartmentsPage> {
       return;
     }
 
-    final department = Department(name: name, description: desc);
+    final position = await getCurrentPosition();
+    if (position == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Location permission denied'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final department = Department(
+      name: name,
+      description: desc,
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+
     departmentBox.add(department);
 
     nameController.clear();
@@ -84,6 +110,17 @@ class _DepartmentsPageState extends State<DepartmentsPage> {
   void deleteDepartment(int index) {
     departmentBox.deleteAt(index);
     setState(() {});
+  }
+
+  void showEventsCount() {
+    final count = eventBox.length;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('There are $count events in the system'),
+        backgroundColor: Colors.yellow[800],
+      ),
+    );
   }
 
   @override
@@ -108,19 +145,23 @@ class _DepartmentsPageState extends State<DepartmentsPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
+
                 ElevatedButton(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => EventsPage(), // Navigate to EventsPage
-                      ),
+                      MaterialPageRoute(builder: (_) => EventsPage()),
                     );
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.yellow[700],
-                  ),
-                  child: const Text('Manage Events'),
+                  child: Text('Manage Events'),
+                ),
+
+                const SizedBox(height: 8),
+
+                ElevatedButton.icon(
+                  icon: Icon(Icons.notifications),
+                  label: Text('Show Events Count'),
+                  onPressed: showEventsCount,
                 ),
               ],
             ),
@@ -145,9 +186,10 @@ class _DepartmentsPageState extends State<DepartmentsPage> {
                           dept.name,
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: dept.description.isEmpty
-                            ? Text('(No description)')
-                            : Text(dept.description),
+                        subtitle: Text(
+                          '${dept.description.isEmpty ? "(No description)" : dept.description}\n'
+                          'Lat: ${dept.latitude}, Lng: ${dept.longitude}',
+                        ),
                         trailing: IconButton(
                           icon: Icon(Icons.delete, color: Colors.red),
                           onPressed: () => deleteDepartment(index),
