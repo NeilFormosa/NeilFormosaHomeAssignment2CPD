@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models/department.dart';
+import 'models/event.dart';
+
+import 'pages/events_page.dart'; // Make sure you have this page created
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
+
+  // Register adapters
   Hive.registerAdapter(DepartmentAdapter());
+  Hive.registerAdapter(EventAdapter());
+
+  // Open boxes
   await Hive.openBox<Department>('departments');
+  await Hive.openBox<Event>('events');
 
   runApp(MyApp());
 }
@@ -88,13 +97,32 @@ class _DepartmentsPageState extends State<DepartmentsPage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(12.0),
-            child: Text(
-              'Departments',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.yellow[800],
-              ),
+            child: Column(
+              children: [
+                Text(
+                  'Departments',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.yellow[800],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EventsPage(), // Navigate to EventsPage
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.yellow[700],
+                  ),
+                  child: const Text('Manage Events'),
+                ),
+              ],
             ),
           ),
           Expanded(
